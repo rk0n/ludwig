@@ -101,6 +101,7 @@ class Trainer(BaseTrainer):
         optimizer=None,
         epochs=100,
         steps_per_checkpoint=0,
+        should_evaluate_train=False,
         regularization_lambda=0.0,
         regularization_type=None,
         learning_rate=0.001,
@@ -158,6 +159,8 @@ class Trainer(BaseTrainer):
         :param steps_per_checkpoint: How often the model is checkpointed. Also dictates maximum evaluation frequency.
                 0: Model is checkpointed after every epoch.
         :type steps_per_checkpoint: Integer
+        :param should_evaluate_train: Whether to run evaluation on the entire training set.
+        :type should_evaluate_train: Boolean
         :param learning_rate: Learning rate specified in configuration, represents how much to scale the gradients by.
                If 'auto', tune_learning_rate must be called before training to estimate the optimal learning rate.
         :type learning_rate: Float
@@ -262,6 +265,7 @@ class Trainer(BaseTrainer):
         self._validation_metric = validation_metric
         self.early_stop = early_stop
         self.steps_per_checkpoint = steps_per_checkpoint
+        self.should_evaluate_train = should_evaluate_train
         self.reduce_learning_rate_on_plateau = reduce_learning_rate_on_plateau
         self.reduce_learning_rate_on_plateau_patience = reduce_learning_rate_on_plateau_patience
         self.reduce_learning_rate_on_plateau_rate = reduce_learning_rate_on_plateau_rate
@@ -306,8 +310,7 @@ class Trainer(BaseTrainer):
             targets: A dictionary of target data, from feature name to tensor.
 
         Returns:
-            A tuple of the loss tensor and a dictionary of loss for every
-            output feature.
+            A tuple of the loss tensor and a dictionary of loss for every output feature.
         """
         self.optimizer.zero_grad()
 
@@ -621,9 +624,27 @@ class Trainer(BaseTrainer):
 
         # eval metrics on train
         self.eval_batch_size = max(self.eval_batch_size, progress_tracker.batch_size)
-        self.evaluation(
-            training_set, "train", progress_tracker.train_metrics, tables, self.eval_batch_size, progress_tracker
-        )
+        if self.should_evaluate_train:
+            self.evaluation(
+                training_set, "train", progress_tracker.train_metrics, tables, self.eval_batch_size, progress_tracker
+            )
+
+            self.write_eval_summary(
+                summary_writer=train_summary_writer,
+                metrics=progress_tracker.train_metrics,
+                step=progress_tracker.steps,
+            )
+        else:
+            # Training set is not evaluated. Add loss to the progress tracker.
+            progress_tracker.train_metrics[COMBINED][LOSS].append(
+                TrainerMetric(epoch=progress_tracker.epoch, step=progress_tracker.steps, value=loss.item())
+            )
+            for output_feature_name, loss_tensor in all_losses.items():
+                progress_tracker.train_metrics[output_feature_name][LOSS].append(
+                    TrainerMetric(epoch=progress_tracker.epoch, step=progress_tracker.steps, value=loss_tensor.item())
+                )
+                tables[output_feature_name].append(["train", loss_tensor.item()])
+            tables[COMBINED].append(["train", loss.item()])
 
         self.write_eval_summary(
             summary_writer=train_summary_writer,
