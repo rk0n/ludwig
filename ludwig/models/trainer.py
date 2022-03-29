@@ -101,7 +101,7 @@ class Trainer(BaseTrainer):
         optimizer=None,
         epochs=100,
         steps_per_checkpoint=0,
-        should_evaluate_train=False,
+        evaluate_training_set=True,
         regularization_lambda=0.0,
         regularization_type=None,
         learning_rate=0.001,
@@ -159,8 +159,8 @@ class Trainer(BaseTrainer):
         :param steps_per_checkpoint: How often the model is checkpointed. Also dictates maximum evaluation frequency.
                 0: Model is checkpointed after every epoch.
         :type steps_per_checkpoint: Integer
-        :param should_evaluate_train: Whether to run evaluation on the entire training set.
-        :type should_evaluate_train: Boolean
+        :param evaluate_training_set: Whether to run evaluation on the entire training set.
+        :type evaluate_training_set: Boolean
         :param learning_rate: Learning rate specified in configuration, represents how much to scale the gradients by.
                If 'auto', tune_learning_rate must be called before training to estimate the optimal learning rate.
         :type learning_rate: Float
@@ -265,7 +265,7 @@ class Trainer(BaseTrainer):
         self._validation_metric = validation_metric
         self.early_stop = early_stop
         self.steps_per_checkpoint = steps_per_checkpoint
-        self.should_evaluate_train = should_evaluate_train
+        self.evaluate_training_set = evaluate_training_set
         self.reduce_learning_rate_on_plateau = reduce_learning_rate_on_plateau
         self.reduce_learning_rate_on_plateau_patience = reduce_learning_rate_on_plateau_patience
         self.reduce_learning_rate_on_plateau_rate = reduce_learning_rate_on_plateau_rate
@@ -624,7 +624,7 @@ class Trainer(BaseTrainer):
 
         # eval metrics on train
         self.eval_batch_size = max(self.eval_batch_size, progress_tracker.batch_size)
-        if self.should_evaluate_train:
+        if self.evaluate_training_set:
             self.evaluation(
                 training_set, "train", progress_tracker.train_metrics, tables, self.eval_batch_size, progress_tracker
             )
