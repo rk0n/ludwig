@@ -101,7 +101,7 @@ class Trainer(BaseTrainer):
         optimizer=None,
         epochs=100,
         steps_per_checkpoint=0,
-        evaluate_training_set=True,
+        evaluate_training_set=False,
         regularization_lambda=0.0,
         regularization_type=None,
         learning_rate=0.001,
